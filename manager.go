@@ -8,6 +8,20 @@ import (
 type Provider interface {
 }
 
+type Facter interface {
+	Fact(name string) (value string, found bool)
+}
+
+type StaticFacter map[string]string
+
+func (f StaticFacter) Fact(name string) (value string, found bool) {
+	if f == nil {
+		return "", false
+	}
+	value, found = f[name]
+	return
+}
+
 type Resource interface {
 	Get(Context) (current Resource, found bool)
 	Create(Context) error
@@ -35,10 +49,12 @@ type ApplyResults []ApplyResult
 
 type Context interface {
 	Provider(name string, target any) (found bool)
+	Fact(name string) (value string, found bool)
 }
 
 type Manager struct {
 	providers map[string]Provider
+	facters   []Facter
 }
 
 func NewManager() *Manager {
@@ -104,4 +120,18 @@ func (m *Manager) Apply(resources Resources) (ApplyResults, error) {
 func areEqual(a, b Resource) bool {
 	// TODO
 	return false
+}
+
+func (m *Manager) AddFacter(facter Facter) {
+	m.facters = append([]Facter{facter}, m.facters...)
+}
+
+func (m *Manager) Fact(name string) (string, bool) {
+	for _, facter := range m.facters {
+		v, found := facter.Fact(name)
+		if found {
+			return v, true
+		}
+	}
+	return "", false
 }
