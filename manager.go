@@ -2,6 +2,7 @@ package resource
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
 
@@ -23,9 +24,13 @@ func (f StaticFacter) Fact(name string) (value string, found bool) {
 }
 
 type Resource interface {
-	Get(Context) (current Resource, found bool)
+	Get(Context) (current ResourceState, found bool)
 	Create(Context) error
 	Update(Context) error
+}
+
+type ResourceState interface {
+	NeedsUpdate(Resource) bool
 }
 
 type Resources []Resource
@@ -41,8 +46,16 @@ type ApplyResult struct {
 	err      error
 }
 
-func (r *ApplyResult) Err() error {
+func (r ApplyResult) Err() error {
 	return r.err
+}
+
+func (r ApplyResult) String() string {
+	if r.err != nil {
+		return fmt.Sprintf("{%s: %s, failed: %v}", r.action, r.resource, r.err)
+	} else {
+		return fmt.Sprintf("{%s: %s}", r.action, r.resource)
+	}
 }
 
 type ApplyResults []ApplyResult
@@ -97,7 +110,7 @@ func (m *Manager) Apply(resources Resources) (ApplyResults, error) {
 			continue
 		}
 
-		if !areEqual(current, resource) {
+		if current.NeedsUpdate(resource) {
 			err := resource.Update(m)
 			results = append(results, ApplyResult{
 				action:   ActionUpdate,

@@ -30,6 +30,7 @@ func TestFilePresent(t *testing.T) {
 	result, err := manager.Apply(resources)
 	t.Log(result)
 	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
 
 	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
@@ -57,10 +58,54 @@ func TestFileContent(t *testing.T) {
 	result, err := manager.Apply(resources)
 	t.Log(result)
 	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
 
 	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, content, string(d))
+}
+
+func TestFileContentUpdate(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	content := "somecontent"
+	resource := File{
+		Provider: providerName,
+		Path:     "/sample-file.txt",
+		Content:  FileContentLiteral(content),
+	}
+	resources := Resources{&resource}
+
+	_, found := resource.Get(manager)
+	assert.False(t, found)
+
+	err := ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
+	require.NoError(t, err)
+
+	_, found = resource.Get(manager)
+	assert.True(t, found)
+
+	// On first apply, it should update the content to the expected one.
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	if assert.NotEmpty(t, result, "expecting update") {
+		assert.Equal(t, ActionUpdate, result[0].action)
+	}
+
+	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	require.NoError(t, err)
+	assert.Equal(t, content, string(d))
+
+	// On second apply, it should do nothing.
+	result, err = manager.Apply(resources)
+	t.Log(result)
+	require.Empty(t, result)
 }
 
 func TestFileContentFromSourceFile(t *testing.T) {
