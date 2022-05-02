@@ -12,6 +12,7 @@ type FileProvider struct {
 type File struct {
 	Provider string
 	Path     string
+	Content  FileContent
 }
 
 func (f *File) provider(applyCtx Context) *FileProvider {
@@ -38,7 +39,14 @@ func (f *File) Create(applyCtx Context) error {
 	if err != nil {
 		return err
 	}
-	return created.Close()
+	defer created.Close()
+	if f.Content != nil {
+		err := f.Content(created)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (f *File) Update(applyCtx Context) error {
