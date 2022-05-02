@@ -21,11 +21,15 @@ func TestFilePresent(t *testing.T) {
 		Provider: providerName,
 		Path:     "/sample-file.txt",
 	}
-	resources := Resources(resource)
+	resources := Resources{&resource}
 
-	err := manager.Apply(resources)
+	_, found := resource.Get(manager)
+	assert.False(t, found)
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
 	require.NoError(t, err)
 
-	_, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
 }
