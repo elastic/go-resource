@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -216,4 +217,46 @@ func TestFileOverrideDefaultProvider(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
+}
+
+func TestFileAbsent(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider: providerName,
+		Path:     "/sample-file.txt",
+		Absent:   true,
+	}
+	resources := Resources{&resource}
+
+	_, found := resource.Get(manager)
+	assert.True(t, found)
+
+	f, err := os.Create(filepath.Join(provider.Prefix, resource.Path))
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	_, found = resource.Get(manager)
+	assert.True(t, found)
+
+	// On first apply, it should remove the file.
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	if assert.NotEmpty(t, result, "expecting update") {
+		assert.Equal(t, ActionUpdate, result[0].action)
+	}
+
+	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	require.True(t, errors.Is(err, os.ErrNotExist))
+
+	// On second apply, it should do nothing.
+	result, err = manager.Apply(resources)
+	t.Log(result)
+	require.Empty(t, result)
 }

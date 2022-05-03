@@ -3,6 +3,7 @@ package resource
 import (
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,6 +24,7 @@ type File struct {
 	Provider string
 	Path     string
 	Content  FileContent
+	Absent   bool
 }
 
 func (f *File) String() string {
@@ -46,6 +48,9 @@ func (f *File) Get(applyCtx Context) (current ResourceState, found bool) {
 	provider := f.provider(applyCtx)
 	path := filepath.Join(provider.Prefix, f.Path)
 	info, err := os.Stat(path)
+	if f.Absent && errors.Is(err, fs.ErrNotExist) {
+		return &FileState{}, true
+	}
 	if err != nil {
 		return nil, false
 	}
@@ -75,6 +80,10 @@ func (f *File) Create(applyCtx Context) error {
 }
 
 func (f *File) Update(applyCtx Context) error {
+	if f.Absent {
+		provider := f.provider(applyCtx)
+		return os.Remove(filepath.Join(provider.Prefix, f.Path))
+	}
 	return f.Create(applyCtx)
 }
 
@@ -86,6 +95,9 @@ type FileState struct {
 
 func (f *FileState) NeedsUpdate(resource Resource) bool {
 	file := resource.(*File)
+	if file.Absent && f.info != nil {
+		return true
+	}
 	if file.Content != nil {
 		current, err := f.content()
 		if err != nil {
