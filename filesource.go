@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"text/template"
 )
 
@@ -44,7 +45,7 @@ func (s *SourceFS) Template(path string) FileContent {
 			},
 		}
 
-		t, err := template.New(path).Funcs(fmap).ParseFS(s.root, path)
+		t, err := template.New(filepath.Base(path)).Funcs(fmap).ParseFS(s.root, path)
 		if err != nil {
 			return err
 		}
