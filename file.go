@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	defaultProviderName   = "file"
-	defaultProviderPrefix = "/"
+	defaultFileProviderName   = "file"
+	defaultFileProviderPrefix = "/"
 )
 
 type FileProvider struct {
@@ -34,7 +34,7 @@ func (f *File) String() string {
 func (f *File) provider(applyCtx Context) *FileProvider {
 	name := f.Provider
 	if name == "" {
-		name = defaultProviderName
+		name = defaultFileProviderName
 	}
 	var provider *FileProvider
 	ok := applyCtx.Provider(name, &provider)

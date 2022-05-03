@@ -68,6 +68,7 @@ type Context interface {
 type Manager struct {
 	providers map[string]Provider
 	facters   []Facter
+	migrator  *Migrator
 }
 
 func NewManager() *Manager {
@@ -78,6 +79,10 @@ func NewManager() *Manager {
 
 func (m *Manager) RegisterProvider(name string, provider Provider) {
 	m.providers[name] = provider
+}
+
+func (m *Manager) Migrator(migrator *Migrator) {
+	m.migrator = migrator
 }
 
 func (m *Manager) Provider(name string, target any) bool {
@@ -97,6 +102,30 @@ func (m *Manager) Provider(name string, target any) bool {
 }
 
 func (m *Manager) Apply(resources Resources) (ApplyResults, error) {
+	results, err := m.applyMigrations()
+	if err != nil {
+		return results, fmt.Errorf("migrator failed: %w", err)
+	}
+
+	resourceResults, err := m.applyResources(resources)
+	results = append(results, resourceResults...)
+	return results, err
+}
+
+func (m *Manager) applyMigrations() (ApplyResults, error) {
+	if m.migrator == nil {
+		return nil, nil
+	}
+
+	// Avoid infinite loops.
+	managerWithoutMigrator := &Manager{
+		providers: m.providers,
+		facters:   m.facters,
+	}
+	return m.migrator.RunMigrations(managerWithoutMigrator)
+}
+
+func (m *Manager) applyResources(resources Resources) (ApplyResults, error) {
 	var results ApplyResults
 	for _, resource := range resources {
 		current, found := resource.Get(m)

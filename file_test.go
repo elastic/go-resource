@@ -195,7 +195,7 @@ func TestFileDefaultProvider(t *testing.T) {
 }
 
 func TestFileOverrideDefaultProvider(t *testing.T) {
-	providerName := defaultProviderName
+	providerName := defaultFileProviderName
 	provider := FileProvider{
 		Prefix: t.TempDir(),
 	}
