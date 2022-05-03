@@ -9,13 +9,19 @@ import (
 )
 
 type SourceFS struct {
-	root fs.FS
+	root          fs.FS
+	templateFuncs template.FuncMap
 }
 
 func NewSourceFS(root fs.FS) *SourceFS {
 	return &SourceFS{
 		root: root,
 	}
+}
+
+func (s *SourceFS) WithTemplateFuncs(fmap template.FuncMap) *SourceFS {
+	s.templateFuncs = fmap
+	return s
 }
 
 func (s *SourceFS) File(path string) FileContent {
@@ -45,10 +51,10 @@ func (s *SourceFS) Template(path string) FileContent {
 			},
 		}
 
-		t, err := template.New(filepath.Base(path)).Funcs(fmap).ParseFS(s.root, path)
+		t, err := template.New(filepath.Base(path)).Funcs(s.templateFuncs).Funcs(fmap).ParseFS(s.root, path)
 		if err != nil {
 			return err
 		}
-		return t.Funcs(fmap).Execute(w, nil)
+		return t.Execute(w, nil)
 	}
 }

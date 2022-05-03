@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -148,7 +149,10 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	facter := StaticFacter{"sample": "samplefact"}
 	manager.AddFacter(facter)
 
-	source := NewSourceFS(os.DirFS("testdata/templates"))
+	funcs := template.FuncMap{
+		"sayHello": func() string { return "Hello!" },
+	}
+	source := NewSourceFS(os.DirFS("testdata/templates")).WithTemplateFuncs(funcs)
 	resource := File{
 		Provider: providerName,
 		Path:     "/sample-file.txt",
@@ -165,7 +169,7 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 
 	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	if assert.NoError(t, err) {
-		assert.Equal(t, "This is a template with a fact: samplefact\n", string(d))
+		assert.Equal(t, "Hello! This is a template with a fact: samplefact\n", string(d))
 	}
 }
 
