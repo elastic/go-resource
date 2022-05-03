@@ -5,10 +5,10 @@ import (
 	"io"
 )
 
-type FileContent func(w io.Writer) error
+type FileContent func(Context, io.Writer) error
 
 func FileContentLiteral(content string) FileContent {
-	return func(w io.Writer) error {
+	return func(_ Context, w io.Writer) error {
 		_, err := fmt.Fprintf(w, content)
 		return err
 	}

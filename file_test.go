@@ -152,7 +152,7 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	resource := File{
 		Provider: providerName,
 		Path:     "/sample-file.txt",
-		Content:  source.Template(manager, "sample-file.txt.tmpl"),
+		Content:  source.Template("sample-file.txt.tmpl"),
 	}
 	resources := Resources{&resource}
 

@@ -50,7 +50,8 @@ func (f *File) Get(applyCtx Context) (current ResourceState, found bool) {
 		return nil, false
 	}
 	return &FileState{
-		info: info,
+		info:    info,
+		context: applyCtx,
 		content: func() (io.ReadCloser, error) {
 			return os.Open(path)
 		},
@@ -65,7 +66,7 @@ func (f *File) Create(applyCtx Context) error {
 	}
 	defer created.Close()
 	if f.Content != nil {
-		err := f.Content(created)
+		err := f.Content(applyCtx, created)
 		if err != nil {
 			return err
 		}
@@ -79,6 +80,7 @@ func (f *File) Update(applyCtx Context) error {
 
 type FileState struct {
 	info    fs.FileInfo
+	context Context
 	content func() (io.ReadCloser, error)
 }
 
@@ -96,7 +98,7 @@ func (f *FileState) NeedsUpdate(resource Resource) bool {
 		io.Copy(currentCheckSum, current)
 
 		expectedCheckSum := md5.New()
-		file.Content(expectedCheckSum)
+		file.Content(f.context, expectedCheckSum)
 
 		if !bytes.Equal(currentCheckSum.Sum(nil), expectedCheckSum.Sum(nil)) {
 			return true

@@ -18,7 +18,7 @@ func NewSourceFS(root fs.FS) *SourceFS {
 }
 
 func (s *SourceFS) File(path string) FileContent {
-	return func(w io.Writer) error {
+	return func(_ Context, w io.Writer) error {
 		f, err := s.root.Open(path)
 		if err != nil {
 			return err
@@ -32,17 +32,18 @@ func (s *SourceFS) File(path string) FileContent {
 	return nil
 }
 
-func (s *SourceFS) Template(applyContext Context, path string) FileContent {
-	fmap := template.FuncMap{
-		"fact": func(name string) (string, error) {
-			v, found := applyContext.Fact(name)
-			if !found {
-				return "", fmt.Errorf("fact %q not found", name)
-			}
-			return v, nil
-		},
-	}
-	return func(w io.Writer) error {
+func (s *SourceFS) Template(path string) FileContent {
+	return func(applyContext Context, w io.Writer) error {
+		fmap := template.FuncMap{
+			"fact": func(name string) (string, error) {
+				v, found := applyContext.Fact(name)
+				if !found {
+					return "", fmt.Errorf("fact %q not found", name)
+				}
+				return v, nil
+			},
+		}
+
 		t, err := template.New(path).Funcs(fmap).ParseFS(s.root, path)
 		if err != nil {
 			return err
