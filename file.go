@@ -10,6 +10,11 @@ import (
 	"path/filepath"
 )
 
+const (
+	defaultProviderName   = "file"
+	defaultProviderPrefix = "/"
+)
+
 type FileProvider struct {
 	Prefix string
 }
@@ -25,10 +30,14 @@ func (f *File) String() string {
 }
 
 func (f *File) provider(applyCtx Context) *FileProvider {
+	name := f.Provider
+	if name == "" {
+		name = defaultProviderName
+	}
 	var provider *FileProvider
-	ok := applyCtx.Provider(f.Provider, &provider)
+	ok := applyCtx.Provider(name, &provider)
 	if !ok {
-		return &FileProvider{Prefix: "."}
+		return &FileProvider{Prefix: "/"}
 	}
 	return provider
 }

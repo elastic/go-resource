@@ -168,3 +168,48 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 		assert.Equal(t, "This is a template with a fact: samplefact\n", string(d))
 	}
 }
+
+func TestFileDefaultProvider(t *testing.T) {
+	manager := NewManager()
+
+	resource := File{
+		Path: filepath.Join(t.TempDir(), "sample-file.txt"),
+	}
+	resources := Resources{&resource}
+
+	_, found := resource.Get(manager)
+	assert.False(t, found)
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
+
+	_, err = os.Stat(resource.Path)
+	assert.NoError(t, err)
+}
+
+func TestFileOverrideDefaultProvider(t *testing.T) {
+	providerName := defaultProviderName
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Path: "/sample-file.txt",
+	}
+	resources := Resources{&resource}
+
+	_, found := resource.Get(manager)
+	assert.False(t, found)
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
+
+	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+}
