@@ -15,17 +15,21 @@ type SourceFS struct {
 	templateFuncs template.FuncMap
 }
 
+// NewSourceFS returns a new SourceFS with the root file system.
 func NewSourceFS(root fs.FS) *SourceFS {
 	return &SourceFS{
 		FS: root,
 	}
 }
 
+// WithTemplateFuncs sets and returns a set of functions that can be used by
+// templates in this source file system.
 func (s *SourceFS) WithTemplateFuncs(fmap template.FuncMap) *SourceFS {
 	s.templateFuncs = fmap
 	return s
 }
 
+// File returns the file content for a given path in the source file system.
 func (s *SourceFS) File(path string) FileContent {
 	return func(_ Context, w io.Writer) error {
 		f, err := s.FS.Open(path)
@@ -41,6 +45,10 @@ func (s *SourceFS) File(path string) FileContent {
 	return nil
 }
 
+// Template returns the file content for a given path in the source file system.
+// If the file contains a template, this template is executed.
+// The template can use the `fact(string) string`  function, as well as other functions
+// defined with `WithTemplateFuncs`.
 func (s *SourceFS) Template(path string) FileContent {
 	return func(applyContext Context, w io.Writer) error {
 		fmap := template.FuncMap{
