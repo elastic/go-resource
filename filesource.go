@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"path/filepath"
 	"text/template"
 )
@@ -66,5 +67,32 @@ func (s *SourceFS) Template(path string) FileContent {
 			return err
 		}
 		return t.Execute(w, nil)
+	}
+}
+
+// DefaultHTTPSource is a SourceHTTP that uses the default HTTP client.
+var DefaultHTTPSource = &HTTPSource{Client: http.DefaultClient}
+
+// HTTPSource is a file source that can be used to obtain contents from http resources.
+type HTTPSource struct {
+	// Client is the client used to make HTTP requests. If no client is configured,
+	// the default one is used.
+	Client *http.Client
+}
+
+// Get obtains the content with an http request to the given location.
+func (s *HTTPSource) Get(location string) FileContent {
+	return func(_ Context, w io.Writer) error {
+		client := s.Client
+		if client == nil {
+			client = http.DefaultClient
+		}
+		resp, err := client.Get(location)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		_, err = io.Copy(w, resp.Body)
+		return err
 	}
 }
