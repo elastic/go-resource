@@ -44,23 +44,23 @@ func (f *File) provider(applyCtx Context) *FileProvider {
 	return provider
 }
 
-func (f *File) Get(applyCtx Context) (current ResourceState, found bool) {
+func (f *File) Get(applyCtx Context) (current ResourceState, err error) {
 	provider := f.provider(applyCtx)
 	path := filepath.Join(provider.Prefix, f.Path)
 	info, err := os.Stat(path)
-	if f.Absent && errors.Is(err, fs.ErrNotExist) {
-		return &FileState{}, true
-	}
-	if err != nil {
-		return nil, false
+	if errors.Is(err, fs.ErrNotExist) {
+		return &FileState{expected: !f.Absent}, nil
+	} else if err != nil {
+		return nil, err
 	}
 	return &FileState{
-		info:    info,
-		context: applyCtx,
+		info:     info,
+		expected: !f.Absent,
+		context:  applyCtx,
 		content: func() (io.ReadCloser, error) {
 			return os.Open(path)
 		},
-	}, true
+	}, nil
 }
 
 func (f *File) Create(applyCtx Context) error {
@@ -88,9 +88,14 @@ func (f *File) Update(applyCtx Context) error {
 }
 
 type FileState struct {
-	info    fs.FileInfo
-	context Context
-	content func() (io.ReadCloser, error)
+	info     fs.FileInfo
+	expected bool
+	context  Context
+	content  func() (io.ReadCloser, error)
+}
+
+func (f *FileState) Found() bool {
+	return f.info != nil || !f.expected
 }
 
 func (f *FileState) NeedsUpdate(resource Resource) bool {

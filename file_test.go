@@ -26,8 +26,9 @@ func TestFilePresent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -54,8 +55,9 @@ func TestFileContent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -83,14 +85,16 @@ func TestFileContentUpdate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
-	err := ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
+	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
 	require.NoError(t, err)
 
-	_, found = resource.Get(manager)
-	assert.True(t, found)
+	state, err = resource.Get(manager)
+	require.NoError(t, err)
+	assert.True(t, state.Found())
 
 	// On first apply, it should update the content to the expected one.
 	result, err := manager.Apply(resources)
@@ -126,8 +130,9 @@ func TestFileContentFromSourceFile(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -161,8 +166,9 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -182,8 +188,9 @@ func TestFileDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -207,8 +214,9 @@ func TestFileOverrideDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.False(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.False(t, state.Found())
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -234,15 +242,17 @@ func TestFileAbsent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	_, found := resource.Get(manager)
-	assert.True(t, found)
+	state, err := resource.Get(manager)
+	require.NoError(t, err)
+	assert.True(t, state.Found())
 
 	f, err := os.Create(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	_, found = resource.Get(manager)
-	assert.True(t, found)
+	state, err = resource.Get(manager)
+	require.NoError(t, err)
+	assert.True(t, state.Found())
 
 	// On first apply, it should remove the file.
 	result, err := manager.Apply(resources)

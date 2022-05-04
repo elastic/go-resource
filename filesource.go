@@ -8,14 +8,16 @@ import (
 	"text/template"
 )
 
+// SourceFS is an abstracted file system that can be used to obtail file contents.
 type SourceFS struct {
-	root          fs.FS
+	fs.FS
+
 	templateFuncs template.FuncMap
 }
 
 func NewSourceFS(root fs.FS) *SourceFS {
 	return &SourceFS{
-		root: root,
+		FS: root,
 	}
 }
 
@@ -26,7 +28,7 @@ func (s *SourceFS) WithTemplateFuncs(fmap template.FuncMap) *SourceFS {
 
 func (s *SourceFS) File(path string) FileContent {
 	return func(_ Context, w io.Writer) error {
-		f, err := s.root.Open(path)
+		f, err := s.FS.Open(path)
 		if err != nil {
 			return err
 		}
@@ -51,7 +53,7 @@ func (s *SourceFS) Template(path string) FileContent {
 			},
 		}
 
-		t, err := template.New(filepath.Base(path)).Funcs(s.templateFuncs).Funcs(fmap).ParseFS(s.root, path)
+		t, err := template.New(filepath.Base(path)).Funcs(s.templateFuncs).Funcs(fmap).ParseFS(s.FS, path)
 		if err != nil {
 			return err
 		}

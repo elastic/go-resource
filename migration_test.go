@@ -34,7 +34,7 @@ func TestMigration(t *testing.T) {
 			},
 		})
 	})
-	manager.Migrator(migrator)
+	manager.withMigrator(migrator)
 
 	results, err := manager.Apply(Resources{
 		&File{
