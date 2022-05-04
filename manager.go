@@ -54,7 +54,7 @@ type ResourceState interface {
 
 	// NeedsUpdate returns true if the resource needs update when compared with the given
 	// resource definition.
-	NeedsUpdate(definition Resource) bool
+	NeedsUpdate(definition Resource) (bool, error)
 }
 
 // Resources is a collection of resources.
@@ -198,7 +198,11 @@ func (m *Manager) applyResources(resources Resources) (ApplyResults, error) {
 			continue
 		}
 
-		if current.NeedsUpdate(resource) {
+		needsUpdate, err := current.NeedsUpdate(resource)
+		if err != nil {
+			return results, err
+		}
+		if needsUpdate {
 			err := resource.Update(m)
 			results = append(results, ApplyResult{
 				action:   ActionUpdate,

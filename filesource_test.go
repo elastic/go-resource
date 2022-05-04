@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -82,6 +83,7 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 
 func TestFileContentFromSourceURL(t *testing.T) {
 	expectedContent := "Some content from the Internet!"
+	expectedMD5 := md5.Sum([]byte(expectedContent))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, expectedContent)
 	}))
@@ -97,6 +99,7 @@ func TestFileContentFromSourceURL(t *testing.T) {
 		Provider: providerName,
 		Path:     "/sample-file.txt",
 		Content:  DefaultHTTPSource.Get(server.URL),
+		MD5:      string(expectedMD5[:]),
 	}
 	resources := Resources{&resource}
 

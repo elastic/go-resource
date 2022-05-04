@@ -16,15 +16,26 @@ const (
 	defaultFileProviderPrefix = "/"
 )
 
+// FileProvider is a provider of files. It can be configured with the prefix
+// path where files should be managed.
 type FileProvider struct {
 	Prefix string
 }
 
+// File is a resource that manages a file.
 type File struct {
+	// Provider is the name of the provider to use, defaults to "file".
 	Provider string
-	Path     string
-	Content  FileContent
-	Absent   bool
+	// Path is the path of the file.
+	Path string
+	// Absent is set to true to indicate that the file should not exist. If it
+	// exists, the file is removed.
+	Absent bool
+	// Content is the content for the file.
+	Content FileContent
+	// MD5 is the expected md5 sum of the content of the file. If the current content
+	// of the file matches this checksum, the file is not updated.
+	MD5 string
 }
 
 func (f *File) String() string {
@@ -65,18 +76,42 @@ func (f *File) Get(applyCtx Context) (current ResourceState, err error) {
 
 func (f *File) Create(applyCtx Context) error {
 	provider := f.provider(applyCtx)
+	path := filepath.Join(provider.Prefix, f.Path)
+
+	if f.Content != nil {
+		return safeWriteContent(applyCtx, path, f.Content, f.MD5)
+	}
+
 	created, err := os.Create(filepath.Join(provider.Prefix, f.Path))
 	if err != nil {
 		return err
 	}
-	defer created.Close()
-	if f.Content != nil {
-		err := f.Content(applyCtx, created)
-		if err != nil {
-			return err
-		}
+	return created.Close()
+}
+
+// safeWriteContent writes the content to a tmp file before overwriting the original file.
+// If md5sum is not empty, it checks that the md5 is correct before writing the final file.
+func safeWriteContent(applyCtx Context, path string, content FileContent, md5Sum string) error {
+	tmpFile, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
+	if err != nil {
+		return err
 	}
-	return nil
+	defer os.Remove(tmpFile.Name())
+
+	checksum := md5.New()
+	w := io.MultiWriter(tmpFile, checksum)
+	err = content(applyCtx, w)
+	tmpFile.Close()
+	if err != nil {
+		return err
+	}
+
+	if md5Sum != "" && md5Sum != string(checksum.Sum(nil)) {
+		return errors.New("md5 checksum of content differs")
+	}
+
+	os.Remove(path)
+	return os.Rename(tmpFile.Name(), path)
 }
 
 func (f *File) Update(applyCtx Context) error {
@@ -98,28 +133,29 @@ func (f *FileState) Found() bool {
 	return f.info != nil || !f.expected
 }
 
-func (f *FileState) NeedsUpdate(resource Resource) bool {
+func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	file := resource.(*File)
 	if file.Absent && f.info != nil {
-		return true
+		return true, nil
 	}
 	if file.Content != nil {
 		current, err := f.content()
 		if err != nil {
-			// TODO: improve error handling here.
-			return true
+			return true, err
 		}
 		defer current.Close()
 
 		currentCheckSum := md5.New()
 		io.Copy(currentCheckSum, current)
+		if file.MD5 != "" && file.MD5 == string(currentCheckSum.Sum(nil)) {
+			return false, nil
+		}
 
 		expectedCheckSum := md5.New()
 		file.Content(f.context, expectedCheckSum)
-
 		if !bytes.Equal(currentCheckSum.Sum(nil), expectedCheckSum.Sum(nil)) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
