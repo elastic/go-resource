@@ -31,7 +31,16 @@ type File struct {
 	// Absent is set to true to indicate that the file should not exist. If it
 	// exists, the file is removed.
 	Absent bool
+	// Directory is set to true to indicate that the file is a directory.
+	Directory bool
+	// CreateParent is set to true if parent path should be created too.
+	CreateParent bool
+	// Force forces destructive operations, such as removing a file to replace it
+	// with a directory, or the other way around. These operations will fail if
+	// force is not set.
+	Force bool
 	// Content is the content for the file.
+	// TODO: Support directory contents.
 	Content FileContent
 	// MD5 is the expected md5 sum of the content of the file. If the current content
 	// of the file matches this checksum, the file is not updated.
@@ -78,11 +87,22 @@ func (f *File) Create(ctx Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
+	if f.CreateParent {
+		err := os.MkdirAll(filepath.Dir(path), 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create parent directory: %w", err)
+		}
+	}
+
+	if f.Directory {
+		return os.Mkdir(path, 0755)
+	}
+
 	if f.Content != nil {
 		return safeWriteContent(ctx, path, f.Content, f.MD5)
 	}
 
-	created, err := os.Create(filepath.Join(provider.Prefix, f.Path))
+	created, err := os.Create(path)
 	if err != nil {
 		return err
 	}
@@ -115,9 +135,19 @@ func safeWriteContent(ctx Context, path string, content FileContent, md5Sum stri
 }
 
 func (f *File) Update(ctx Context) error {
+	provider := f.provider(ctx)
+	path := filepath.Join(provider.Prefix, f.Path)
 	if f.Absent {
-		provider := f.provider(ctx)
-		return os.Remove(filepath.Join(provider.Prefix, f.Path))
+		return os.Remove(path)
+	}
+	if f.Force {
+		info, err := os.Stat(path)
+		if err == nil && info != nil && f.Directory != info.IsDir() {
+			err := os.RemoveAll(path)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return f.Create(ctx)
 }
@@ -136,6 +166,9 @@ func (f *FileState) Found() bool {
 func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	file := resource.(*File)
 	if file.Absent && f.info != nil {
+		return true, nil
+	}
+	if f.info != nil && file.Directory != f.info.IsDir() {
 		return true, nil
 	}
 	if file.Content != nil {

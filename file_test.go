@@ -203,3 +203,130 @@ func TestFileAbsent(t *testing.T) {
 	t.Log(result)
 	require.Empty(t, result)
 }
+
+func TestFileInSubdirectory(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider:     providerName,
+		Path:         "/dir/sample-file.txt",
+		CreateParent: true,
+	}
+	resources := Resources{&resource}
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.False(t, state.Found())
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
+
+	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+}
+
+func TestFileDirectory(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider:  providerName,
+		Path:      "/dir",
+		Directory: true,
+	}
+	resources := Resources{&resource}
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.False(t, state.Found())
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
+
+	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func TestFileToDirectoryUpdate(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider:  providerName,
+		Path:      "some-file",
+		Directory: true,
+		Force:     true,
+	}
+	resources := Resources{&resource}
+
+	f, err := os.Create(filepath.Join(provider.Prefix, resource.Path))
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.True(t, state.Found())
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	if assert.Len(t, result, 1) {
+		assert.Equal(t, ActionUpdate, result[0].action)
+	}
+
+	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func TestDirectoryToFileUpdate(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider: providerName,
+		Path:     "some-file",
+		Force:    true,
+	}
+	resources := Resources{&resource}
+
+	err := os.Mkdir(filepath.Join(provider.Prefix, resource.Path), 0755)
+	require.NoError(t, err)
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.True(t, state.Found())
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	if assert.Len(t, result, 1) {
+		assert.Equal(t, ActionUpdate, result[0].action)
+	}
+
+	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.False(t, info.IsDir())
+}
