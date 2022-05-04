@@ -25,7 +25,7 @@ func TestFilePresent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -54,7 +54,7 @@ func TestFileContent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -84,14 +84,14 @@ func TestFileContentUpdate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
 	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager)
+	state, err = resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -121,7 +121,7 @@ func TestFileDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -147,7 +147,7 @@ func TestFileOverrideDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -175,7 +175,7 @@ func TestFileAbsent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager)
+	state, err := resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -183,7 +183,7 @@ func TestFileAbsent(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	state, err = resource.Get(manager)
+	state, err = resource.Get(manager.Context(nil))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 

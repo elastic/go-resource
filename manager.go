@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -91,7 +92,10 @@ func (r ApplyResult) String() string {
 type ApplyResults []ApplyResult
 
 // Context is the context of execution when applying resources.
+// It also implements `context.Context`.
 type Context interface {
+	context.Context
+
 	// Provider obtains a provider from the context, and sets it in the target.
 	// The target must be a pointer to a provider type.
 	// It returns false, and doesn't set the target if no provider is found with
@@ -117,6 +121,19 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		providers: make(map[string]Provider),
+	}
+}
+
+func (m *Manager) Context(ctx context.Context) Context {
+	if ctx == nil {
+		ctx = context.TODO()
+	}
+	return &struct {
+		context.Context
+		*Manager
+	}{
+		Context: ctx,
+		Manager: m,
 	}
 }
 
@@ -154,12 +171,19 @@ func (m *Manager) Provider(name string, target any) bool {
 // Apply applies a collection of resources. Depending on their current state,
 // resources are created or updated.
 func (m *Manager) Apply(resources Resources) (ApplyResults, error) {
+	return m.ApplyCtx(context.Background(), resources)
+}
+
+// ApplyCtx applies a collection of resources with a context that is passed to resource
+// operations.
+// Depending on their current state, resources are created or updated.
+func (m *Manager) ApplyCtx(ctx context.Context, resources Resources) (ApplyResults, error) {
 	results, err := m.applyMigrations()
 	if err != nil {
 		return results, fmt.Errorf("migrator failed: %w", err)
 	}
 
-	resourceResults, err := m.applyResources(resources)
+	resourceResults, err := m.applyResources(ctx, resources)
 	results = append(results, resourceResults...)
 	return results, err
 }
@@ -180,16 +204,17 @@ func (m *Manager) applyMigrations() (ApplyResults, error) {
 
 // applyResources applies a collection of resources. Depending on their current
 // state, resources are created or updated.
-func (m *Manager) applyResources(resources Resources) (ApplyResults, error) {
+func (m *Manager) applyResources(ctx context.Context, resources Resources) (ApplyResults, error) {
 	var results ApplyResults
+	applyCtx := m.Context(ctx)
 	for _, resource := range resources {
-		current, err := resource.Get(m)
+		current, err := resource.Get(applyCtx)
 		if err != nil {
 			return results, err
 		}
 
 		if !current.Found() {
-			err := resource.Create(m)
+			err := resource.Create(applyCtx)
 			results = append(results, ApplyResult{
 				action:   ActionCreate,
 				resource: resource,
@@ -203,7 +228,7 @@ func (m *Manager) applyResources(resources Resources) (ApplyResults, error) {
 			return results, err
 		}
 		if needsUpdate {
-			err := resource.Update(m)
+			err := resource.Update(applyCtx)
 			results = append(results, ApplyResult{
 				action:   ActionUpdate,
 				resource: resource,

@@ -82,12 +82,16 @@ type HTTPSource struct {
 
 // Get obtains the content with an http request to the given location.
 func (s *HTTPSource) Get(location string) FileContent {
-	return func(_ Context, w io.Writer) error {
+	return func(ctx Context, w io.Writer) error {
 		client := s.Client
 		if client == nil {
 			client = http.DefaultClient
 		}
-		resp, err := client.Get(location)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
 		if err != nil {
 			return err
 		}

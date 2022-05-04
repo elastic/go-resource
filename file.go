@@ -42,21 +42,21 @@ func (f *File) String() string {
 	return fmt.Sprintf("[File:%s:%s]", f.Provider, f.Path)
 }
 
-func (f *File) provider(applyCtx Context) *FileProvider {
+func (f *File) provider(ctx Context) *FileProvider {
 	name := f.Provider
 	if name == "" {
 		name = defaultFileProviderName
 	}
 	var provider *FileProvider
-	ok := applyCtx.Provider(name, &provider)
+	ok := ctx.Provider(name, &provider)
 	if !ok {
 		return &FileProvider{Prefix: "/"}
 	}
 	return provider
 }
 
-func (f *File) Get(applyCtx Context) (current ResourceState, err error) {
-	provider := f.provider(applyCtx)
+func (f *File) Get(ctx Context) (current ResourceState, err error) {
+	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 	info, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -67,19 +67,19 @@ func (f *File) Get(applyCtx Context) (current ResourceState, err error) {
 	return &FileState{
 		info:     info,
 		expected: !f.Absent,
-		context:  applyCtx,
+		context:  ctx,
 		content: func() (io.ReadCloser, error) {
 			return os.Open(path)
 		},
 	}, nil
 }
 
-func (f *File) Create(applyCtx Context) error {
-	provider := f.provider(applyCtx)
+func (f *File) Create(ctx Context) error {
+	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
 	if f.Content != nil {
-		return safeWriteContent(applyCtx, path, f.Content, f.MD5)
+		return safeWriteContent(ctx, path, f.Content, f.MD5)
 	}
 
 	created, err := os.Create(filepath.Join(provider.Prefix, f.Path))
@@ -91,7 +91,7 @@ func (f *File) Create(applyCtx Context) error {
 
 // safeWriteContent writes the content to a tmp file before overwriting the original file.
 // If md5sum is not empty, it checks that the md5 is correct before writing the final file.
-func safeWriteContent(applyCtx Context, path string, content FileContent, md5Sum string) error {
+func safeWriteContent(ctx Context, path string, content FileContent, md5Sum string) error {
 	tmpFile, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func safeWriteContent(applyCtx Context, path string, content FileContent, md5Sum
 
 	checksum := md5.New()
 	w := io.MultiWriter(tmpFile, checksum)
-	err = content(applyCtx, w)
+	err = content(ctx, w)
 	tmpFile.Close()
 	if err != nil {
 		return err
@@ -114,12 +114,12 @@ func safeWriteContent(applyCtx Context, path string, content FileContent, md5Sum
 	return os.Rename(tmpFile.Name(), path)
 }
 
-func (f *File) Update(applyCtx Context) error {
+func (f *File) Update(ctx Context) error {
 	if f.Absent {
-		provider := f.provider(applyCtx)
+		provider := f.provider(ctx)
 		return os.Remove(filepath.Join(provider.Prefix, f.Path))
 	}
-	return f.Create(applyCtx)
+	return f.Create(ctx)
 }
 
 type FileState struct {
