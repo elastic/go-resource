@@ -48,7 +48,7 @@ scenario that starts the Elastic Stack:
 package main
 
 import (
-	"embed"
+        "embed"
         "log"
 
         "github.com/elastic/go-resource"
@@ -59,7 +59,7 @@ var static embed.FS
 
 var (
         // Define a source of files from an embedded file system
-	// You can include additional functions for templates.
+        // You can include additional functions for templates.
         templateFuncs = template.FuncMap{
                 "semverLessThan": semverLessThan,
         }
@@ -67,7 +67,7 @@ var (
 
         // Define the resources.
         stackResources = []resource.Resource{
-		// Files can be defined as static files, or as templates.
+                // Files can be defined as static files, or as templates.
                 &resource.File{
                         Provider: "stack-file",
                         Path:     "Dockerfile.package-registry",
@@ -129,6 +129,38 @@ func main() {
         }
 }
 
+```
+
+The `main` function can be also implemented using the `Main` helper:
+
+```golang
+func main() {
+        stackMain := resource.Main{
+                Facters: []Facter{
+                        resource.StaticFacter{
+                                "registry_base_image":   packageRegistryBaseImage,
+                                "elasticsearch_version": stackVersion,
+                                "kibana_version":        stackVersion,
+                        }),
+
+                        // Add a facter to get variables from environment.
+                        // The value in the last facter has precedence.
+                        &EnvFacter{},
+                },
+                Providers: map[string]Provider{
+                        "stack-file": &resource.FileProvider{
+                                Prefix: stackDir,
+                        })
+                },
+                Resources: stackResources,
+        }
+
+        // Run the main helper, it will print errors as needed.
+        err := stackMain.Run()
+        if err != nil {
+                log.Fatal(err)
+        }
+}
 ```
 
 You can find this complete example and others in *TBD*.
