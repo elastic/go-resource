@@ -19,6 +19,7 @@ package resource
 
 import (
 	"errors"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -51,8 +52,9 @@ func TestFilePresent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ActionCreate, result[0].action)
 
-	_, err = os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
+	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
 }
 
 func TestFileContent(t *testing.T) {
@@ -346,4 +348,37 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
 	assert.False(t, info.IsDir())
+}
+
+func TestFileModeUpdate(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	for i, mode := range []fs.FileMode{0644, 0600} {
+		resource := File{
+			Provider: providerName,
+			Path:     "some-file",
+			Mode:     FileMode(mode),
+		}
+		resources := Resources{&resource}
+
+		result, err := manager.Apply(resources)
+		t.Log(result)
+		require.NoError(t, err)
+		if assert.Len(t, result, 1) {
+			if i == 0 {
+				assert.Equal(t, ActionCreate, result[0].action)
+			} else {
+				assert.Equal(t, ActionUpdate, result[0].action)
+			}
+		}
+
+		info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+		assert.NoError(t, err)
+		assert.Equal(t, resource.Mode.String(), info.Mode().String())
+	}
 }

@@ -48,6 +48,9 @@ type File struct {
 	// Absent is set to true to indicate that the file should not exist. If it
 	// exists, the file is removed.
 	Absent bool
+	// Mode is the file mode and permissions of the file. If not set, defaults to 0644
+	// for files and 0755 for directories.
+	Mode *fs.FileMode
 	// Directory is set to true to indicate that the file is a directory.
 	Directory bool
 	// CreateParent is set to true if parent path should be created too.
@@ -81,6 +84,17 @@ func (f *File) provider(ctx Context) *FileProvider {
 	return provider
 }
 
+func (f *File) mode() fs.FileMode {
+	switch {
+	case f.Mode != nil:
+		return *f.Mode
+	case f.Directory:
+		return 0755
+	default:
+		return 0644
+	}
+}
+
 func (f *File) Get(ctx Context) (current ResourceState, err error) {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
@@ -105,25 +119,34 @@ func (f *File) Create(ctx Context) error {
 	path := filepath.Join(provider.Prefix, f.Path)
 
 	if f.CreateParent {
-		err := os.MkdirAll(filepath.Dir(path), 0755)
+		err := os.MkdirAll(filepath.Dir(path), f.mode()|0111)
 		if err != nil {
 			return fmt.Errorf("failed to create parent directory: %w", err)
 		}
 	}
 
 	if f.Directory {
-		return os.Mkdir(path, 0755)
+		return os.Mkdir(path, f.mode())
 	}
 
 	if f.Content != nil {
-		return safeWriteContent(ctx, path, f.Content, f.MD5)
+		err := safeWriteContent(ctx, path, f.Content, f.MD5)
+		if err != nil {
+			return err
+		}
+	} else {
+		created, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		defer created.Close()
 	}
 
-	created, err := os.Create(path)
-	if err != nil {
-		return err
+	if err := os.Chmod(path, f.mode()); err != nil {
+		return fmt.Errorf("failed to set mode: %w", err)
 	}
-	return created.Close()
+
+	return nil
 }
 
 // safeWriteContent writes the content to a tmp file before overwriting the original file.
@@ -188,6 +211,9 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	if f.info != nil && file.Directory != f.info.IsDir() {
 		return true, nil
 	}
+	if f.info != nil && file.mode().Perm() != f.info.Mode().Perm() {
+		return true, nil
+	}
 	if file.Content != nil {
 		current, err := f.content()
 		if err != nil {
@@ -208,4 +234,9 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// FileMode is a helper function to create a *fs.FileMode inline.
+func FileMode(mode fs.FileMode) *fs.FileMode {
+	return &mode
 }
