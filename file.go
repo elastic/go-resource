@@ -62,6 +62,8 @@ type File struct {
 	// Content is the content for the file.
 	// TODO: Support directory contents.
 	Content FileContent
+	// KeepExistingContent keeps content of file if it exists.
+	KeepExistingContent bool
 	// MD5 is the expected md5 sum of the content of the file. If the current content
 	// of the file matches this checksum, the file is not updated.
 	MD5 string
@@ -115,6 +117,10 @@ func (f *File) Get(ctx Context) (current ResourceState, err error) {
 }
 
 func (f *File) Create(ctx Context) error {
+	return f.createWithContent(ctx, f.Content)
+}
+
+func (f *File) createWithContent(ctx Context, content FileContent) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
@@ -129,12 +135,12 @@ func (f *File) Create(ctx Context) error {
 		return os.Mkdir(path, f.mode())
 	}
 
-	if f.Content != nil {
-		err := safeWriteContent(ctx, path, f.Content, f.MD5)
+	if content != nil {
+		err := safeWriteContent(ctx, path, content, f.MD5)
 		if err != nil {
 			return err
 		}
-	} else {
+	} else if f.Content == nil {
 		created, err := os.Create(path)
 		if err != nil {
 			return err
@@ -189,7 +195,11 @@ func (f *File) Update(ctx Context) error {
 			}
 		}
 	}
-	return f.Create(ctx)
+	content := f.Content
+	if f.KeepExistingContent {
+		content = nil
+	}
+	return f.createWithContent(ctx, content)
 }
 
 type FileState struct {
@@ -214,7 +224,7 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	if f.info != nil && file.mode().Perm() != f.info.Mode().Perm() {
 		return true, nil
 	}
-	if file.Content != nil {
+	if file.Content != nil && !file.KeepExistingContent {
 		current, err := f.content()
 		if err != nil {
 			return true, err

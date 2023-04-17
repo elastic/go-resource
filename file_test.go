@@ -132,6 +132,122 @@ func TestFileContentUpdate(t *testing.T) {
 	require.Empty(t, result)
 }
 
+func TestFilePresentWithKeepExisting(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	resource := File{
+		Provider:            providerName,
+		Path:                "/sample-file.txt",
+		KeepExistingContent: true,
+	}
+	resources := Resources{&resource}
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.False(t, state.Found())
+
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Equal(t, ActionCreate, result[0].action)
+
+	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
+}
+
+func TestFileContentUpdateKeepExisting(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	content := "somecontent"
+	resource := File{
+		Provider:            providerName,
+		Path:                "/sample-file.txt",
+		Content:             FileContentLiteral(content),
+		KeepExistingContent: true,
+	}
+	resources := Resources{&resource}
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.False(t, state.Found())
+
+	oldContent := []byte("old content")
+	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
+	require.NoError(t, err)
+
+	state, err = resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.True(t, state.Found())
+
+	// It shouldn't update the content.
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	assert.Empty(t, result)
+
+	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	require.NoError(t, err)
+	assert.Equal(t, string(oldContent), string(d))
+}
+
+func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
+	providerName := "test-files"
+	provider := FileProvider{
+		Prefix: t.TempDir(),
+	}
+	manager := NewManager()
+	manager.RegisterProvider(providerName, &provider)
+
+	content := "somecontent"
+	resource := File{
+		Provider:            providerName,
+		Path:                "/sample-file.txt",
+		Content:             FileContentLiteral(content),
+		Mode:                FileMode(0644),
+		KeepExistingContent: true,
+	}
+	resources := Resources{&resource}
+
+	state, err := resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.False(t, state.Found())
+
+	oldContent := []byte("old content")
+	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
+	require.NoError(t, err)
+
+	state, err = resource.Get(manager.Context(nil))
+	require.NoError(t, err)
+	assert.True(t, state.Found())
+
+	// It shouldn't update the content.
+	result, err := manager.Apply(resources)
+	t.Log(result)
+	require.NoError(t, err)
+	if assert.NotEmpty(t, result, "expecting update") {
+		assert.Equal(t, ActionUpdate, result[0].action)
+	}
+
+	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	require.NoError(t, err)
+	assert.Equal(t, string(oldContent), string(d))
+
+	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.Equal(t, resource.Mode.String(), info.Mode().String())
+}
+
 func TestFileDefaultProvider(t *testing.T) {
 	manager := NewManager()
 
