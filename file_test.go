@@ -440,10 +440,12 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 	manager := NewManager()
 	manager.RegisterProvider(providerName, &provider)
 
+	content := "somecontent"
 	resource := File{
 		Provider: providerName,
 		Path:     "some-file",
 		Force:    true,
+		Content:  FileContentLiteral(content),
 	}
 	resources := Resources{&resource}
 
@@ -464,6 +466,10 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
 	assert.False(t, info.IsDir())
+
+	found, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	assert.NoError(t, err)
+	assert.Equal(t, content, string(found))
 }
 
 func TestFileModeUpdate(t *testing.T) {
