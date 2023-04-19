@@ -62,6 +62,8 @@ type File struct {
 	// Content is the content for the file.
 	// TODO: Support directory contents.
 	Content FileContent
+	// KeepExistingContent keeps content of file if it exists.
+	KeepExistingContent bool
 	// MD5 is the expected md5 sum of the content of the file. If the current content
 	// of the file matches this checksum, the file is not updated.
 	MD5 string
@@ -115,6 +117,22 @@ func (f *File) Get(ctx Context) (current ResourceState, err error) {
 }
 
 func (f *File) Create(ctx Context) error {
+	err := f.createFile(ctx)
+	if err != nil {
+		return err
+	}
+	err = f.writeContent(ctx)
+	if err != nil {
+		return err
+	}
+	err = f.ensureMode(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *File) createFile(ctx Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
@@ -129,18 +147,29 @@ func (f *File) Create(ctx Context) error {
 		return os.Mkdir(path, f.mode())
 	}
 
-	if f.Content != nil {
-		err := safeWriteContent(ctx, path, f.Content, f.MD5)
-		if err != nil {
-			return err
-		}
-	} else {
-		created, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		defer created.Close()
+	created, err := os.OpenFile(path, os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
 	}
+	created.Close()
+
+	return nil
+}
+
+func (f *File) writeContent(ctx Context) error {
+	if f.Content == nil {
+		return nil
+	}
+
+	provider := f.provider(ctx)
+	path := filepath.Join(provider.Prefix, f.Path)
+
+	return safeWriteContent(ctx, path, f.Content, f.MD5)
+}
+
+func (f *File) ensureMode(ctx Context) error {
+	provider := f.provider(ctx)
+	path := filepath.Join(provider.Prefix, f.Path)
 
 	if err := os.Chmod(path, f.mode()); err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
@@ -170,7 +199,10 @@ func safeWriteContent(ctx Context, path string, content FileContent, md5Sum stri
 		return errors.New("md5 checksum of content differs")
 	}
 
-	os.Remove(path)
+	err = os.Remove(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("cannot replace file %s", path)
+	}
 	return os.Rename(tmpFile.Name(), path)
 }
 
@@ -180,6 +212,7 @@ func (f *File) Update(ctx Context) error {
 	if f.Absent {
 		return os.Remove(path)
 	}
+
 	if f.Force {
 		info, err := os.Stat(path)
 		if err == nil && info != nil && f.Directory != info.IsDir() {
@@ -188,8 +221,23 @@ func (f *File) Update(ctx Context) error {
 				return err
 			}
 		}
+
+		return f.Create(ctx)
 	}
-	return f.Create(ctx)
+
+	if !f.KeepExistingContent {
+		err := f.writeContent(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := f.ensureMode(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type FileState struct {
@@ -214,7 +262,7 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	if f.info != nil && file.mode().Perm() != f.info.Mode().Perm() {
 		return true, nil
 	}
-	if file.Content != nil {
+	if file.Content != nil && !file.KeepExistingContent {
 		current, err := f.content()
 		if err != nil {
 			return true, err
