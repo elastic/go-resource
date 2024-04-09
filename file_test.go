@@ -203,6 +203,10 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 }
 
 func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Support file permissions on Windows based on ACLs")
+	}
+
 	providerName := "test-files"
 	provider := FileProvider{
 		Prefix: t.TempDir(),
@@ -474,6 +478,10 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 }
 
 func TestFileModeUpdate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Support file permissions on Windows based on ACLs")
+	}
+
 	providerName := "test-files"
 	provider := FileProvider{
 		Prefix: t.TempDir(),
