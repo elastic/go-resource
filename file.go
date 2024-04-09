@@ -26,6 +26,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 const (
@@ -171,7 +172,7 @@ func (f *File) ensureMode(ctx Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
-	if err := chmod(path, f.mode()); err != nil {
+	if err := os.Chmod(path, f.mode()); err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
 
@@ -259,7 +260,8 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	if f.info != nil && file.Directory != f.info.IsDir() {
 		return true, nil
 	}
-	if f.info != nil && file.mode().Perm() != f.info.Mode().Perm() {
+	// TODO: Implement file permissions support based on ACLs in Windows.
+	if f.info != nil && runtime.GOOS != "windows" && file.mode().Perm() != f.info.Mode().Perm() {
 		return true, nil
 	}
 	if file.Content != nil && !file.KeepExistingContent {

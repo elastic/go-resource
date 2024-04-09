@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,7 @@ func TestFilePresent(t *testing.T) {
 
 	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
+	assertEqualFileMode(t, fs.FileMode(0644), stat.Mode())
 }
 
 func TestFileContent(t *testing.T) {
@@ -158,7 +159,7 @@ func TestFilePresentWithKeepExisting(t *testing.T) {
 
 	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
+	assertEqualFileMode(t, fs.FileMode(0644), stat.Mode())
 }
 
 func TestFileContentUpdateKeepExisting(t *testing.T) {
@@ -245,7 +246,7 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 
 	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, resource.Mode.String(), info.Mode().String())
+	assertEqualFileMode(t, *resource.Mode, info.Mode())
 }
 
 func TestFileDefaultProvider(t *testing.T) {
@@ -501,6 +502,17 @@ func TestFileModeUpdate(t *testing.T) {
 
 		info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 		assert.NoError(t, err)
-		assert.Equal(t, resource.Mode.String(), info.Mode().String())
+		assertEqualFileMode(t, *resource.Mode, info.Mode())
 	}
+}
+
+func assertEqualFileMode(t *testing.T, expected, found os.FileMode) bool {
+	if runtime.GOOS == "windows" {
+		// POSIX File Mode APIs are not reliable on Windows, don't check anything here.
+		// TODO: Support file permissions based on Windows ACLs.
+		return true
+	}
+
+	t.Helper()
+	return assert.Equal(t, expected.String(), found.String())
 }
