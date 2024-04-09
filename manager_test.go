@@ -18,6 +18,9 @@
 package resource
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,4 +41,24 @@ func TestManagerProviders(t *testing.T) {
 	if assert.True(t, ok) {
 		assert.Equal(t, provider.Something, found.Something)
 	}
+}
+
+func TestApplyError(t *testing.T) {
+	t.Run("nil error on empty list", func(t *testing.T) {
+		err := newApplyError([]error{})
+		assert.NoError(t, err)
+	})
+	t.Run("propagate context errors", func(t *testing.T) {
+		err := newApplyError([]error{context.Canceled})
+		assert.True(t, errors.Is(err, context.Canceled))
+		assert.Equal(t, "there was an apply error: context canceled", err.Error())
+	})
+	t.Run("propagate wrapped context errors", func(t *testing.T) {
+		err := newApplyError([]error{
+			errors.New("some error"),
+			fmt.Errorf("interrupted: %w", context.Canceled),
+		})
+		assert.True(t, errors.Is(err, context.Canceled))
+		assert.Equal(t, "there were 2 errors", err.Error())
+	})
 }
