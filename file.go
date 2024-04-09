@@ -171,7 +171,7 @@ func (f *File) ensureMode(ctx Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
-	if err := os.Chmod(path, f.mode()); err != nil {
+	if err := chmod(path, f.mode()); err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
 
