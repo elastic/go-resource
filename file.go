@@ -30,8 +30,7 @@ import (
 )
 
 const (
-	defaultFileProviderName   = "file"
-	defaultFileProviderPrefix = "/"
+	defaultFileProviderName = "file"
 )
 
 // FileProvider is a provider of files. It can be configured with the prefix
@@ -82,7 +81,7 @@ func (f *File) provider(ctx Context) *FileProvider {
 	var provider *FileProvider
 	ok := ctx.Provider(name, &provider)
 	if !ok {
-		return &FileProvider{Prefix: "/"}
+		return &FileProvider{}
 	}
 	return provider
 }
