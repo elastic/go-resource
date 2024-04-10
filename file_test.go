@@ -18,6 +18,7 @@
 package resource
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"io/ioutil"
@@ -44,7 +45,7 @@ func TestFilePresent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -74,7 +75,7 @@ func TestFileContent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -104,14 +105,14 @@ func TestFileContentUpdate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
 	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -130,6 +131,7 @@ func TestFileContentUpdate(t *testing.T) {
 	// On second apply, it should do nothing.
 	result, err = manager.Apply(resources)
 	t.Log(result)
+	assert.NoError(t, err)
 	require.Empty(t, result)
 }
 
@@ -148,7 +150,7 @@ func TestFilePresentWithKeepExisting(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -179,7 +181,7 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -187,7 +189,7 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -224,7 +226,7 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -232,7 +234,7 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -261,7 +263,7 @@ func TestFileDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -287,7 +289,7 @@ func TestFileOverrideDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -315,7 +317,7 @@ func TestFileAbsent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -323,7 +325,7 @@ func TestFileAbsent(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -341,6 +343,7 @@ func TestFileAbsent(t *testing.T) {
 	// On second apply, it should do nothing.
 	result, err = manager.Apply(resources)
 	t.Log(result)
+	assert.NoError(t, err)
 	require.Empty(t, result)
 }
 
@@ -359,7 +362,7 @@ func TestFileInSubdirectory(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -387,7 +390,7 @@ func TestFileDirectory(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -421,7 +424,7 @@ func TestFileToDirectoryUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -457,7 +460,7 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 	err := os.Mkdir(filepath.Join(provider.Prefix, resource.Path), 0755)
 	require.NoError(t, err)
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 

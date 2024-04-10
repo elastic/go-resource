@@ -18,6 +18,7 @@
 package resource
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
@@ -48,7 +49,7 @@ func TestFileContentFromSourceFile(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -84,7 +85,7 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -120,7 +121,7 @@ func TestFileContentFromSourceURL(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 

@@ -69,6 +69,7 @@ func TestMigration(t *testing.T) {
 			Path: "new-file.txt",
 		},
 	})
+	assert.NoError(t, err)
 	assert.Empty(t, results)
 }
 
