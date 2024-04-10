@@ -18,11 +18,12 @@
 package resource
 
 import (
+	"context"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,7 @@ func TestFilePresent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -54,7 +55,7 @@ func TestFilePresent(t *testing.T) {
 
 	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
+	assertEqualFileMode(t, fs.FileMode(0644), stat.Mode())
 }
 
 func TestFileContent(t *testing.T) {
@@ -73,7 +74,7 @@ func TestFileContent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -82,7 +83,7 @@ func TestFileContent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ActionCreate, result[0].action)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, content, string(d))
 }
@@ -103,14 +104,14 @@ func TestFileContentUpdate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -122,13 +123,14 @@ func TestFileContentUpdate(t *testing.T) {
 		assert.Equal(t, ActionUpdate, result[0].action)
 	}
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, content, string(d))
 
 	// On second apply, it should do nothing.
 	result, err = manager.Apply(resources)
 	t.Log(result)
+	assert.NoError(t, err)
 	require.Empty(t, result)
 }
 
@@ -147,7 +149,7 @@ func TestFilePresentWithKeepExisting(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -158,7 +160,7 @@ func TestFilePresentWithKeepExisting(t *testing.T) {
 
 	stat, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, fs.FileMode(0644).String(), stat.Mode().String())
+	assertEqualFileMode(t, fs.FileMode(0644), stat.Mode())
 }
 
 func TestFileContentUpdateKeepExisting(t *testing.T) {
@@ -178,15 +180,15 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
 	oldContent := []byte("old content")
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -196,12 +198,16 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, string(oldContent), string(d))
 }
 
 func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Support file permissions on Windows based on ACLs")
+	}
+
 	providerName := "test-files"
 	provider := FileProvider{
 		Prefix: t.TempDir(),
@@ -219,15 +225,15 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
 	oldContent := []byte("old content")
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
 	require.NoError(t, err)
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -239,13 +245,13 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 		assert.Equal(t, ActionUpdate, result[0].action)
 	}
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, string(oldContent), string(d))
 
 	info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 	assert.NoError(t, err)
-	assert.Equal(t, resource.Mode.String(), info.Mode().String())
+	assertEqualFileMode(t, *resource.Mode, info.Mode())
 }
 
 func TestFileDefaultProvider(t *testing.T) {
@@ -256,7 +262,7 @@ func TestFileDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -282,7 +288,7 @@ func TestFileOverrideDefaultProvider(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -310,7 +316,7 @@ func TestFileAbsent(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -318,7 +324,7 @@ func TestFileAbsent(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	state, err = resource.Get(manager.Context(nil))
+	state, err = resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -336,6 +342,7 @@ func TestFileAbsent(t *testing.T) {
 	// On second apply, it should do nothing.
 	result, err = manager.Apply(resources)
 	t.Log(result)
+	assert.NoError(t, err)
 	require.Empty(t, result)
 }
 
@@ -354,7 +361,7 @@ func TestFileInSubdirectory(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -382,7 +389,7 @@ func TestFileDirectory(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
@@ -416,7 +423,7 @@ func TestFileToDirectoryUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -452,7 +459,7 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 	err := os.Mkdir(filepath.Join(provider.Prefix, resource.Path), 0755)
 	require.NoError(t, err)
 
-	state, err := resource.Get(manager.Context(nil))
+	state, err := resource.Get(manager.Context(context.Background()))
 	require.NoError(t, err)
 	assert.True(t, state.Found())
 
@@ -473,6 +480,10 @@ func TestDirectoryToFileUpdate(t *testing.T) {
 }
 
 func TestFileModeUpdate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Support file permissions on Windows based on ACLs")
+	}
+
 	providerName := "test-files"
 	provider := FileProvider{
 		Prefix: t.TempDir(),
@@ -501,6 +512,17 @@ func TestFileModeUpdate(t *testing.T) {
 
 		info, err := os.Stat(filepath.Join(provider.Prefix, resource.Path))
 		assert.NoError(t, err)
-		assert.Equal(t, resource.Mode.String(), info.Mode().String())
+		assertEqualFileMode(t, *resource.Mode, info.Mode())
 	}
+}
+
+func assertEqualFileMode(t *testing.T, expected, found os.FileMode) bool {
+	if runtime.GOOS == "windows" {
+		// POSIX File Mode APIs are not reliable on Windows, don't check anything here.
+		// TODO: Support file permissions based on Windows ACLs.
+		return true
+	}
+
+	t.Helper()
+	return assert.Equal(t, expected.String(), found.String())
 }
