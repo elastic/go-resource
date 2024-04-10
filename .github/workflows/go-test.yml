@@ -19,25 +19,31 @@ jobs:
           - 1.22.x
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Configure git in Windows
+      - name: Configure git in Windows.
         run: |
           git config --global core.autocrlf input
         if: ${{ matrix.os == 'windows-latest' }}
+
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Setup Go ${{ matrix.go-version }}
+
+      - name: Setup Go ${{ matrix.go-version }}.
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+
       - name: Static checks with Go vet.
         run: go vet ./...
-      - name: Static checks with Staticcheck
+
+      - name: Static checks with Staticcheck.
         run: go run honnef.co/go/tools/cmd/staticcheck ./...
+
       - name: Test with the Go CLI.
         run: go test -v ./...
-      - name: Check pending updates
+
+      - name: Check pending updates.
         run: |
           go run golang.org/x/tools/cmd/goimports -w .
           go mod tidy
