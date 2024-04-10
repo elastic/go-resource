@@ -33,7 +33,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            let ref = github.sha;
+            let ref = context.sha;
             if (context.eventName.startsWith('pull_request')) {
               console.log("Running in pull request");
               ref = context.payload.pull_request.head.sha;
