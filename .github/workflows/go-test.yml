@@ -34,9 +34,9 @@ jobs:
         with:
           script: |
             let ref = github.sha;
-            if (github.event_name.startsWith('pull_request')) {
+            if (context.eventName.startsWith('pull_request')) {
               console.log("Running in pull request");
-              ref = github.event.pull_request.head.sha;
+              ref = context.payload.pull_request.head.sha;
             }
             core.setOutput('ref', ref);
 
