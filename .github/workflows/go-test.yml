@@ -45,7 +45,7 @@ jobs:
 
       - name: Check pending updates.
         run: |
-          go run golang.org/x/tools/cmd/goimports -w .
+          go run golang.org/x/tools/cmd/goimports -local github.com/elastic/go-resource/ -w .
           go mod tidy
           git update-index --really-refresh
           git diff-index --quiet HEAD
