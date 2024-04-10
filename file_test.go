@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -84,7 +83,7 @@ func TestFileContent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ActionCreate, result[0].action)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, content, string(d))
 }
@@ -109,7 +108,7 @@ func TestFileContentUpdate(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, state.Found())
 
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), []byte("old content"), 0644)
 	require.NoError(t, err)
 
 	state, err = resource.Get(manager.Context(context.Background()))
@@ -124,7 +123,7 @@ func TestFileContentUpdate(t *testing.T) {
 		assert.Equal(t, ActionUpdate, result[0].action)
 	}
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, content, string(d))
 
@@ -186,7 +185,7 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	assert.False(t, state.Found())
 
 	oldContent := []byte("old content")
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0644)
 	require.NoError(t, err)
 
 	state, err = resource.Get(manager.Context(context.Background()))
@@ -199,7 +198,7 @@ func TestFileContentUpdateKeepExisting(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, string(oldContent), string(d))
 }
@@ -231,7 +230,7 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 	assert.False(t, state.Found())
 
 	oldContent := []byte("old content")
-	err = ioutil.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
+	err = os.WriteFile(filepath.Join(provider.Prefix, resource.Path), oldContent, 0777)
 	require.NoError(t, err)
 
 	state, err = resource.Get(manager.Context(context.Background()))
@@ -246,7 +245,7 @@ func TestFileContentUpdateKeepExistingChangeMode(t *testing.T) {
 		assert.Equal(t, ActionUpdate, result[0].action)
 	}
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	require.NoError(t, err)
 	assert.Equal(t, string(oldContent), string(d))
 

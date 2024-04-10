@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -57,7 +56,7 @@ func TestFileContentFromSourceFile(t *testing.T) {
 	t.Log(result)
 	require.NoError(t, err)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	if assert.NoError(t, err) {
 		assert.Equal(t, "This is a source file.\n", string(d))
 	}
@@ -93,7 +92,7 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	t.Log(result)
 	require.NoError(t, err)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	if assert.NoError(t, err) {
 		assert.Equal(t, "Hello! This is a template with a fact: samplefact\n", string(d))
 	}
@@ -129,7 +128,7 @@ func TestFileContentFromSourceURL(t *testing.T) {
 	t.Log(result)
 	require.NoError(t, err)
 
-	d, err := ioutil.ReadFile(filepath.Join(provider.Prefix, resource.Path))
+	d, err := os.ReadFile(filepath.Join(provider.Prefix, resource.Path))
 	if assert.NoError(t, err) {
 		assert.Equal(t, expectedContent, string(d))
 	}
