@@ -148,9 +148,6 @@ func NewManager() *Manager {
 
 // Context returns a resource context that wraps the given context and the manager.
 func (m *Manager) Context(ctx context.Context) Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	return &struct {
 		context.Context
 		*Manager

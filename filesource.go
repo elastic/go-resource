@@ -59,8 +59,6 @@ func (s *SourceFS) File(path string) FileContent {
 		_, err = io.Copy(w, f)
 		return err
 	}
-
-	return nil
 }
 
 // Template returns the file content for a given path in the source file system.

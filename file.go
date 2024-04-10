@@ -26,11 +26,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 const (
-	defaultFileProviderName   = "file"
-	defaultFileProviderPrefix = "/"
+	defaultFileProviderName = "file"
 )
 
 // FileProvider is a provider of files. It can be configured with the prefix
@@ -81,7 +81,7 @@ func (f *File) provider(ctx Context) *FileProvider {
 	var provider *FileProvider
 	ok := ctx.Provider(name, &provider)
 	if !ok {
-		return &FileProvider{Prefix: "/"}
+		return &FileProvider{}
 	}
 	return provider
 }
@@ -259,7 +259,8 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 	if f.info != nil && file.Directory != f.info.IsDir() {
 		return true, nil
 	}
-	if f.info != nil && file.mode().Perm() != f.info.Mode().Perm() {
+	// TODO: Implement file permissions support based on ACLs in Windows.
+	if f.info != nil && runtime.GOOS != "windows" && file.mode().Perm() != f.info.Mode().Perm() {
 		return true, nil
 	}
 	if file.Content != nil && !file.KeepExistingContent {
