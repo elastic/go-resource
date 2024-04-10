@@ -33,7 +33,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const outputVarName = 'ref'
+            const outputVarName = 'ref';
             if (gihub.event_name === 'pull_request') {
               console.log("Running in pull request");
               core.setOutput(outputVarName, github.event.pull_request.head.sha);
