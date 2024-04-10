@@ -35,20 +35,11 @@ jobs:
         run: go vet ./...
       - name: Static checks with Staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck ./...
-      - name: Check imports
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await exec.exec('go' ['run', 'golang.org/x/tools/cmd/goimports', '-d', '.'], {
-              listeners: {
-                stdout: (data: Buffer) => {
-                  if (data.toString().trim().length != 0) {
-                    console.log(data.toString());
-                    core.setFailed("Changes in imports required");
-                  }
-                }
-              }
-            });
-
       - name: Test with the Go CLI.
         run: go test -v ./...
+      - name: Check pending updates
+        run: |
+          go run golang.org/x/tools/cmd/goimports -w .
+          go mod tidy
+          git update-index --really-refresh
+          git diff-index --quiet HEAD
