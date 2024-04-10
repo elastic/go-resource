@@ -19,7 +19,6 @@ package resource
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -80,7 +79,13 @@ type Resources []Resource
 
 // Actions reported on results when applying resources.
 const (
+	// ActionUnknown is used to indicate a failure happening before determining the required action.
+	ActionUnknown = "unkwnown"
+
+	// ActionCreate refers to an action that creates a resource.
 	ActionCreate = "create"
+
+	// ActionUpdate refers to an action that affects an existing resource.
 	ActionUpdate = "update"
 )
 
@@ -141,6 +146,7 @@ func NewManager() *Manager {
 	}
 }
 
+// Context returns a resource context that wraps the given context and the manager.
 func (m *Manager) Context(ctx context.Context) Context {
 	return &struct {
 		context.Context
@@ -219,46 +225,66 @@ func (m *Manager) applyMigrations() (ApplyResults, error) {
 // applyResources applies a collection of resources. Depending on their current
 // state, resources are created or updated.
 func (m *Manager) applyResources(ctx context.Context, resources Resources) (ApplyResults, error) {
-	var results ApplyResults
 	applyCtx := m.Context(ctx)
+	var results ApplyResults
+	var errors []error
 	for _, resource := range resources {
-		current, err := resource.Get(applyCtx)
-		if err != nil {
-			return results, err
-		}
-
-		if !current.Found() {
-			err := resource.Create(applyCtx)
-			results = append(results, ApplyResult{
-				action:   ActionCreate,
-				resource: resource,
-				err:      err,
-			})
-			continue
-		}
-
-		needsUpdate, err := current.NeedsUpdate(resource)
-		if err != nil {
-			return results, err
-		}
-		if needsUpdate {
-			err := resource.Update(applyCtx)
-			results = append(results, ApplyResult{
-				action:   ActionUpdate,
-				resource: resource,
-				err:      err,
-			})
-			continue
-		}
-	}
-	var err error
-	for _, result := range results {
-		if result.Err() != nil {
-			err = errors.New("there where errors")
+		if err := applyCtx.Err(); err != nil {
+			errors = append(errors, fmt.Errorf("apply interrupted: %w", err))
 			break
 		}
+
+		result := m.applyResource(applyCtx, resource)
+		if result == nil {
+			continue
+		}
+		if result.err != nil {
+			errors = append(errors, result.err)
+		}
+		results = append(results, *result)
 	}
-	return results, err
+	return results, newApplyError(errors)
+}
+
+// applyResource is a helper function that applies a single resource.
+func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResult {
+	current, err := resource.Get(applyCtx)
+	if err != nil {
+		return &ApplyResult{
+			action:   ActionUnknown,
+			resource: resource,
+			err:      err,
+		}
+	}
+
+	if !current.Found() {
+		err := resource.Create(applyCtx)
+		return &ApplyResult{
+			action:   ActionCreate,
+			resource: resource,
+			err:      err,
+		}
+	}
+
+	needsUpdate, err := current.NeedsUpdate(resource)
+	if err != nil {
+		return &ApplyResult{
+			action:   ActionUnknown,
+			resource: resource,
+			err:      err,
+		}
+	}
+	if needsUpdate {
+		err := resource.Update(applyCtx)
+		return &ApplyResult{
+			action:   ActionUpdate,
+			resource: resource,
+			err:      err,
+		}
+	}
+
+	// No action applied to this resource.
+	return nil
 }
 
 // AddFacter adds a facter to the manager. Facters added later have precedence.
@@ -278,4 +304,32 @@ func (m *Manager) Fact(name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// applyError wraps all the errors happened while applying a set of resources.
+// Errors can be unwrapped with `Unwrap() []error`.
+type applyError struct {
+	errors []error
+}
+
+// newApplyError returns an error wrapping all the given errors, or nil if
+// there were no error.
+func newApplyError(errors []error) error {
+	if len(errors) == 0 {
+		return nil
+	}
+	return &applyError{errors: errors}
+}
+
+// Error implements the error interface.
+func (e *applyError) Error() string {
+	if len(e.errors) == 1 {
+		return fmt.Sprintf("there was an apply error: %s", e.errors[0].Error())
+	}
+	return fmt.Sprintf("there were %d errors", len(e.errors))
+}
+
+// Unwrap allows to access wrapped errors.
+func (e *applyError) Unwrap() []error {
+	return e.errors
 }
