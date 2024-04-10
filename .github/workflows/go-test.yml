@@ -44,13 +44,6 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ steps.event.changeset.ref }}
-        if: github.event_name == 'pull_request'
-
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          ref: ${{ github.sha }}
-        if: github.event_name != 'pull_request'
 
       - name: Setup Go ${{ matrix.go-version }}.
         uses: actions/setup-go@v5
