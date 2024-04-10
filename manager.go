@@ -142,9 +142,6 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) Context(ctx context.Context) Context {
-	if ctx == nil {
-		ctx = context.TODO()
-	}
 	return &struct {
 		context.Context
 		*Manager
