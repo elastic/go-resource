@@ -53,15 +53,15 @@ func (f StaticFacter) Fact(name string) (value string, found bool) {
 type Resource interface {
 	// Get gets the current state of a resource. An error is returned if the state couldn't
 	// be determined. An error here interrupts execution.
-	Get(Context) (current ResourceState, err error)
+	Get(context.Context) (current ResourceState, err error)
 
 	// Create implements the creation of the resource. It can return an error, that is reported
 	// as part of the execution result.
-	Create(Context) error
+	Create(context.Context) error
 
 	// Update implements the upodate of an existing resource. Ir can return an error, that
 	// is reported as part of the execution result.
-	Update(Context) error
+	Update(context.Context) error
 }
 
 // ResourceState is the state of a resource.
@@ -113,12 +113,9 @@ func (r ApplyResult) String() string {
 // ApplyResults is the colection of results when applying a collection of resources.
 type ApplyResults []ApplyResult
 
-// Context is the context of execution when applying resources.
-// It also implements `context.Context`.
-type Context interface {
-	context.Context
-
-	// Provider obtains a provider from the context, and sets it in the target.
+// Runtime is the context of execution when applying resources.
+type Runtime interface {
+	// Provider obtains a provider from the runtime, and sets it in the target.
 	// The target must be a pointer to a provider type.
 	// It returns false, and doesn't set the target if no provider is found with
 	// the given name and target type.
@@ -146,15 +143,22 @@ func NewManager() *Manager {
 	}
 }
 
-// Context returns a resource context that wraps the given context and the manager.
-func (m *Manager) Context(ctx context.Context) Context {
-	return &struct {
-		context.Context
-		*Manager
-	}{
-		Context: ctx,
-		Manager: m,
+const ContextRuntimeKey = "resource_runtime"
+
+// ContextWithRuntime returns a resource context that wraps the given context and the manager.
+func (m *Manager) ContextWithRuntime(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ContextRuntimeKey, m)
+}
+
+// RuntimeFromContext obtains a runtime from a context. The context must contain a runtime,
+// otherwise this call will panic.
+func RuntimeFromContext(ctx context.Context) Runtime {
+	v := ctx.Value(ContextRuntimeKey)
+	runtime, ok := v.(Runtime)
+	if !ok {
+		panic("context without resources runtime")
 	}
+	return runtime
 }
 
 // Register provider registers a provider in the Manager.
@@ -225,7 +229,7 @@ func (m *Manager) applyMigrations() (ApplyResults, error) {
 // applyResources applies a collection of resources. Depending on their current
 // state, resources are created or updated.
 func (m *Manager) applyResources(ctx context.Context, resources Resources) (ApplyResults, error) {
-	applyCtx := m.Context(ctx)
+	applyCtx := m.ContextWithRuntime(ctx)
 	var results ApplyResults
 	var errors []error
 	for _, resource := range resources {
@@ -247,8 +251,8 @@ func (m *Manager) applyResources(ctx context.Context, resources Resources) (Appl
 }
 
 // applyResource is a helper function that applies a single resource.
-func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResult {
-	current, err := resource.Get(applyCtx)
+func (m *Manager) applyResource(ctx context.Context, resource Resource) *ApplyResult {
+	current, err := resource.Get(ctx)
 	if err != nil {
 		return &ApplyResult{
 			action:   ActionUnknown,
@@ -258,7 +262,7 @@ func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResul
 	}
 
 	if !current.Found() {
-		err := resource.Create(applyCtx)
+		err := resource.Create(ctx)
 		return &ApplyResult{
 			action:   ActionCreate,
 			resource: resource,
@@ -275,7 +279,7 @@ func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResul
 		}
 	}
 	if needsUpdate {
-		err := resource.Update(applyCtx)
+		err := resource.Update(ctx)
 		return &ApplyResult{
 			action:   ActionUpdate,
 			resource: resource,

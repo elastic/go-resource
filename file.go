@@ -19,6 +19,7 @@ package resource
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -73,13 +74,14 @@ func (f *File) String() string {
 	return fmt.Sprintf("[File:%s:%s]", f.Provider, f.Path)
 }
 
-func (f *File) provider(ctx Context) *FileProvider {
+func (f *File) provider(ctx context.Context) *FileProvider {
 	name := f.Provider
 	if name == "" {
 		name = defaultFileProviderName
 	}
+	r := RuntimeFromContext(ctx)
 	var provider *FileProvider
-	ok := ctx.Provider(name, &provider)
+	ok := r.Provider(name, &provider)
 	if !ok {
 		return &FileProvider{}
 	}
@@ -97,7 +99,7 @@ func (f *File) mode() fs.FileMode {
 	}
 }
 
-func (f *File) Get(ctx Context) (current ResourceState, err error) {
+func (f *File) Get(ctx context.Context) (current ResourceState, err error) {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 	info, err := os.Stat(path)
@@ -116,7 +118,7 @@ func (f *File) Get(ctx Context) (current ResourceState, err error) {
 	}, nil
 }
 
-func (f *File) Create(ctx Context) error {
+func (f *File) Create(ctx context.Context) error {
 	err := f.createFile(ctx)
 	if err != nil {
 		return err
@@ -132,7 +134,7 @@ func (f *File) Create(ctx Context) error {
 	return nil
 }
 
-func (f *File) createFile(ctx Context) error {
+func (f *File) createFile(ctx context.Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
@@ -156,7 +158,7 @@ func (f *File) createFile(ctx Context) error {
 	return nil
 }
 
-func (f *File) writeContent(ctx Context) error {
+func (f *File) writeContent(ctx context.Context) error {
 	if f.Content == nil {
 		return nil
 	}
@@ -167,7 +169,7 @@ func (f *File) writeContent(ctx Context) error {
 	return safeWriteContent(ctx, path, f.Content, f.MD5)
 }
 
-func (f *File) ensureMode(ctx Context) error {
+func (f *File) ensureMode(ctx context.Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 
@@ -180,7 +182,7 @@ func (f *File) ensureMode(ctx Context) error {
 
 // safeWriteContent writes the content to a tmp file before overwriting the original file.
 // If md5sum is not empty, it checks that the md5 is correct before writing the final file.
-func safeWriteContent(ctx Context, path string, content FileContent, md5Sum string) error {
+func safeWriteContent(ctx context.Context, path string, content FileContent, md5Sum string) error {
 	tmpFile, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
 	if err != nil {
 		return err
@@ -206,7 +208,7 @@ func safeWriteContent(ctx Context, path string, content FileContent, md5Sum stri
 	return os.Rename(tmpFile.Name(), path)
 }
 
-func (f *File) Update(ctx Context) error {
+func (f *File) Update(ctx context.Context) error {
 	provider := f.provider(ctx)
 	path := filepath.Join(provider.Prefix, f.Path)
 	if f.Absent {
@@ -243,7 +245,7 @@ func (f *File) Update(ctx Context) error {
 type FileState struct {
 	info     fs.FileInfo
 	expected bool
-	context  Context
+	context  context.Context
 	content  func() (io.ReadCloser, error)
 }
 

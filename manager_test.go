@@ -98,14 +98,14 @@ type dummyResource struct {
 	createError error
 }
 
-func (r *dummyResource) Get(Context) (ResourceState, error) {
+func (r *dummyResource) Get(context.Context) (ResourceState, error) {
 	return &dummyResourceState{
 		absent:      r.absent,
 		needsUpdate: r.needsUpdate,
 	}, nil
 }
-func (r *dummyResource) Create(Context) error { return r.createError }
-func (r *dummyResource) Update(Context) error { return nil }
+func (r *dummyResource) Create(context.Context) error { return r.createError }
+func (r *dummyResource) Update(context.Context) error { return nil }
 
 type dummyResourceState struct {
 	absent      bool
