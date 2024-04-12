@@ -143,17 +143,20 @@ func NewManager() *Manager {
 	}
 }
 
-const ContextRuntimeKey = "resource_runtime"
+// contextKey is a custom type to avoid collisions in key values.
+type contextKey int
+
+const contextRuntimeKey contextKey = iota
 
 // ContextWithRuntime returns a resource context that wraps the given context and the manager.
 func (m *Manager) ContextWithRuntime(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ContextRuntimeKey, m)
+	return context.WithValue(ctx, contextRuntimeKey, m)
 }
 
 // RuntimeFromContext obtains a runtime from a context. The context must contain a runtime,
 // otherwise this call will panic.
 func RuntimeFromContext(ctx context.Context) Runtime {
-	v := ctx.Value(ContextRuntimeKey)
+	v := ctx.Value(contextRuntimeKey)
 	runtime, ok := v.(Runtime)
 	if !ok {
 		panic("context without resources runtime")
