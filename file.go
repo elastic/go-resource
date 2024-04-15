@@ -244,7 +244,6 @@ func (f *File) Update(ctx context.Context, scope Scope) error {
 type FileState struct {
 	info     fs.FileInfo
 	expected bool
-	context  context.Context
 	scope    Scope
 	content  func() (io.ReadCloser, error)
 }
