@@ -50,7 +50,7 @@ func (s *SourceFS) WithTemplateFuncs(fmap template.FuncMap) *SourceFS {
 
 // File returns the file content for a given path in the source file system.
 func (s *SourceFS) File(path string) FileContent {
-	return func(_ context.Context, w io.Writer) error {
+	return func(_ context.Context, _ Scope, w io.Writer) error {
 		f, err := s.FS.Open(path)
 		if err != nil {
 			return err
@@ -67,11 +67,10 @@ func (s *SourceFS) File(path string) FileContent {
 // The template can use the `fact(string) string`  function, as well as other functions
 // defined with `WithTemplateFuncs`.
 func (s *SourceFS) Template(path string) FileContent {
-	return func(ctx context.Context, w io.Writer) error {
-		runtime := RuntimeFromContext(ctx)
+	return func(_ context.Context, scope Scope, w io.Writer) error {
 		fmap := template.FuncMap{
 			"fact": func(name string) (string, error) {
-				v, found := runtime.Fact(name)
+				v, found := scope.Fact(name)
 				if !found {
 					return "", fmt.Errorf("fact %q not found", name)
 				}
@@ -99,7 +98,7 @@ type HTTPSource struct {
 
 // Get obtains the content with an http request to the given location.
 func (s *HTTPSource) Get(location string) FileContent {
-	return func(ctx context.Context, w io.Writer) error {
+	return func(ctx context.Context, _ Scope, w io.Writer) error {
 		client := s.Client
 		if client == nil {
 			client = http.DefaultClient

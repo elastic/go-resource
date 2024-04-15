@@ -48,9 +48,9 @@ func TestFileContentFromSourceFile(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.ContextWithRuntime(context.Background()))
+	state, err := resource.Get(context.Background(), manager)
 	require.NoError(t, err)
-	assert.False(t, state.Found())
+	assert.False(t, state.Found(context.Background()))
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -84,9 +84,9 @@ func TestFileContentFromSourceTemplate(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.ContextWithRuntime(context.Background()))
+	state, err := resource.Get(context.Background(), manager)
 	require.NoError(t, err)
-	assert.False(t, state.Found())
+	assert.False(t, state.Found(context.Background()))
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
@@ -120,9 +120,9 @@ func TestFileContentFromSourceURL(t *testing.T) {
 	}
 	resources := Resources{&resource}
 
-	state, err := resource.Get(manager.ContextWithRuntime(context.Background()))
+	state, err := resource.Get(context.Background(), manager)
 	require.NoError(t, err)
-	assert.False(t, state.Found())
+	assert.False(t, state.Found(context.Background()))
 
 	result, err := manager.Apply(resources)
 	t.Log(result)
