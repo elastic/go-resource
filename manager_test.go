@@ -98,21 +98,21 @@ type dummyResource struct {
 	createError error
 }
 
-func (r *dummyResource) Get(Context) (ResourceState, error) {
+func (r *dummyResource) Get(context.Context, Scope) (ResourceState, error) {
 	return &dummyResourceState{
 		absent:      r.absent,
 		needsUpdate: r.needsUpdate,
 	}, nil
 }
-func (r *dummyResource) Create(Context) error { return r.createError }
-func (r *dummyResource) Update(Context) error { return nil }
+func (r *dummyResource) Create(context.Context, Scope) error { return r.createError }
+func (r *dummyResource) Update(context.Context, Scope) error { return nil }
 
 type dummyResourceState struct {
 	absent      bool
 	needsUpdate bool
 }
 
-func (s *dummyResourceState) Found() bool { return !s.absent }
-func (s *dummyResourceState) NeedsUpdate(definition Resource) (bool, error) {
+func (s *dummyResourceState) Found(context.Context) bool { return !s.absent }
+func (s *dummyResourceState) NeedsUpdate(context.Context, Resource) (bool, error) {
 	return s.needsUpdate, nil
 }

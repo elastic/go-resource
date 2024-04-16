@@ -18,6 +18,7 @@
 package resource
 
 import (
+	"context"
 	"fmt"
 	"io"
 )
@@ -25,11 +26,11 @@ import (
 // FileContent defines the content of a file. It recives an apply context
 // to obtain information from the execution, and a writer where to write
 // the content.
-type FileContent func(Context, io.Writer) error
+type FileContent func(context.Context, Scope, io.Writer) error
 
 // FileContentLiteral returns a literal file content.
 func FileContentLiteral(content string) FileContent {
-	return func(_ Context, w io.Writer) error {
+	return func(_ context.Context, _ Scope, w io.Writer) error {
 		_, err := fmt.Fprint(w, content)
 		return err
 	}

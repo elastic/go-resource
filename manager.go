@@ -53,25 +53,25 @@ func (f StaticFacter) Fact(name string) (value string, found bool) {
 type Resource interface {
 	// Get gets the current state of a resource. An error is returned if the state couldn't
 	// be determined. An error here interrupts execution.
-	Get(Context) (current ResourceState, err error)
+	Get(context.Context, Scope) (current ResourceState, err error)
 
 	// Create implements the creation of the resource. It can return an error, that is reported
 	// as part of the execution result.
-	Create(Context) error
+	Create(context.Context, Scope) error
 
 	// Update implements the upodate of an existing resource. Ir can return an error, that
 	// is reported as part of the execution result.
-	Update(Context) error
+	Update(context.Context, Scope) error
 }
 
 // ResourceState is the state of a resource.
 type ResourceState interface {
 	// Found returns true if the resource exists.
-	Found() bool
+	Found(context.Context) bool
 
 	// NeedsUpdate returns true if the resource needs update when compared with the given
 	// resource definition.
-	NeedsUpdate(definition Resource) (bool, error)
+	NeedsUpdate(ctx context.Context, definition Resource) (bool, error)
 }
 
 // Resources is a collection of resources.
@@ -113,12 +113,9 @@ func (r ApplyResult) String() string {
 // ApplyResults is the colection of results when applying a collection of resources.
 type ApplyResults []ApplyResult
 
-// Context is the context of execution when applying resources.
-// It also implements `context.Context`.
-type Context interface {
-	context.Context
-
-	// Provider obtains a provider from the context, and sets it in the target.
+// Scope contains the information available to resources when applying them.
+type Scope interface {
+	// Provider obtains a provider and sets it in the target.
 	// The target must be a pointer to a provider type.
 	// It returns false, and doesn't set the target if no provider is found with
 	// the given name and target type.
@@ -143,17 +140,6 @@ type Manager struct {
 func NewManager() *Manager {
 	return &Manager{
 		providers: make(map[string]Provider),
-	}
-}
-
-// Context returns a resource context that wraps the given context and the manager.
-func (m *Manager) Context(ctx context.Context) Context {
-	return &struct {
-		context.Context
-		*Manager
-	}{
-		Context: ctx,
-		Manager: m,
 	}
 }
 
@@ -225,16 +211,15 @@ func (m *Manager) applyMigrations() (ApplyResults, error) {
 // applyResources applies a collection of resources. Depending on their current
 // state, resources are created or updated.
 func (m *Manager) applyResources(ctx context.Context, resources Resources) (ApplyResults, error) {
-	applyCtx := m.Context(ctx)
 	var results ApplyResults
 	var errors []error
 	for _, resource := range resources {
-		if err := applyCtx.Err(); err != nil {
+		if err := ctx.Err(); err != nil {
 			errors = append(errors, fmt.Errorf("apply interrupted: %w", err))
 			break
 		}
 
-		result := m.applyResource(applyCtx, resource)
+		result := m.applyResource(ctx, resource)
 		if result == nil {
 			continue
 		}
@@ -247,8 +232,8 @@ func (m *Manager) applyResources(ctx context.Context, resources Resources) (Appl
 }
 
 // applyResource is a helper function that applies a single resource.
-func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResult {
-	current, err := resource.Get(applyCtx)
+func (m *Manager) applyResource(ctx context.Context, resource Resource) *ApplyResult {
+	current, err := resource.Get(ctx, m)
 	if err != nil {
 		return &ApplyResult{
 			action:   ActionUnknown,
@@ -257,8 +242,8 @@ func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResul
 		}
 	}
 
-	if !current.Found() {
-		err := resource.Create(applyCtx)
+	if !current.Found(ctx) {
+		err := resource.Create(ctx, m)
 		return &ApplyResult{
 			action:   ActionCreate,
 			resource: resource,
@@ -266,7 +251,7 @@ func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResul
 		}
 	}
 
-	needsUpdate, err := current.NeedsUpdate(resource)
+	needsUpdate, err := current.NeedsUpdate(ctx, resource)
 	if err != nil {
 		return &ApplyResult{
 			action:   ActionUnknown,
@@ -275,7 +260,7 @@ func (m *Manager) applyResource(applyCtx Context, resource Resource) *ApplyResul
 		}
 	}
 	if needsUpdate {
-		err := resource.Update(applyCtx)
+		err := resource.Update(ctx, m)
 		return &ApplyResult{
 			action:   ActionUpdate,
 			resource: resource,

@@ -19,6 +19,7 @@ package resource
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -73,13 +74,13 @@ func (f *File) String() string {
 	return fmt.Sprintf("[File:%s:%s]", f.Provider, f.Path)
 }
 
-func (f *File) provider(ctx Context) *FileProvider {
+func (f *File) provider(scope Scope) *FileProvider {
 	name := f.Provider
 	if name == "" {
 		name = defaultFileProviderName
 	}
 	var provider *FileProvider
-	ok := ctx.Provider(name, &provider)
+	ok := scope.Provider(name, &provider)
 	if !ok {
 		return &FileProvider{}
 	}
@@ -97,8 +98,8 @@ func (f *File) mode() fs.FileMode {
 	}
 }
 
-func (f *File) Get(ctx Context) (current ResourceState, err error) {
-	provider := f.provider(ctx)
+func (f *File) Get(ctx context.Context, scope Scope) (current ResourceState, err error) {
+	provider := f.provider(scope)
 	path := filepath.Join(provider.Prefix, f.Path)
 	info, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -109,31 +110,31 @@ func (f *File) Get(ctx Context) (current ResourceState, err error) {
 	return &FileState{
 		info:     info,
 		expected: !f.Absent,
-		context:  ctx,
+		scope:    scope,
 		content: func() (io.ReadCloser, error) {
 			return os.Open(path)
 		},
 	}, nil
 }
 
-func (f *File) Create(ctx Context) error {
-	err := f.createFile(ctx)
+func (f *File) Create(ctx context.Context, scope Scope) error {
+	err := f.createFile(scope)
 	if err != nil {
 		return err
 	}
-	err = f.writeContent(ctx)
+	err = f.writeContent(ctx, scope)
 	if err != nil {
 		return err
 	}
-	err = f.ensureMode(ctx)
+	err = f.ensureMode(scope)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *File) createFile(ctx Context) error {
-	provider := f.provider(ctx)
+func (f *File) createFile(scope Scope) error {
+	provider := f.provider(scope)
 	path := filepath.Join(provider.Prefix, f.Path)
 
 	if f.CreateParent {
@@ -156,19 +157,19 @@ func (f *File) createFile(ctx Context) error {
 	return nil
 }
 
-func (f *File) writeContent(ctx Context) error {
+func (f *File) writeContent(ctx context.Context, scope Scope) error {
 	if f.Content == nil {
 		return nil
 	}
 
-	provider := f.provider(ctx)
+	provider := f.provider(scope)
 	path := filepath.Join(provider.Prefix, f.Path)
 
-	return safeWriteContent(ctx, path, f.Content, f.MD5)
+	return safeWriteContent(ctx, scope, path, f.Content, f.MD5)
 }
 
-func (f *File) ensureMode(ctx Context) error {
-	provider := f.provider(ctx)
+func (f *File) ensureMode(scope Scope) error {
+	provider := f.provider(scope)
 	path := filepath.Join(provider.Prefix, f.Path)
 
 	if err := os.Chmod(path, f.mode()); err != nil {
@@ -180,7 +181,7 @@ func (f *File) ensureMode(ctx Context) error {
 
 // safeWriteContent writes the content to a tmp file before overwriting the original file.
 // If md5sum is not empty, it checks that the md5 is correct before writing the final file.
-func safeWriteContent(ctx Context, path string, content FileContent, md5Sum string) error {
+func safeWriteContent(ctx context.Context, scope Scope, path string, content FileContent, md5Sum string) error {
 	tmpFile, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path))
 	if err != nil {
 		return err
@@ -189,7 +190,7 @@ func safeWriteContent(ctx Context, path string, content FileContent, md5Sum stri
 
 	checksum := md5.New()
 	w := io.MultiWriter(tmpFile, checksum)
-	err = content(ctx, w)
+	err = content(ctx, scope, w)
 	tmpFile.Close()
 	if err != nil {
 		return err
@@ -206,8 +207,8 @@ func safeWriteContent(ctx Context, path string, content FileContent, md5Sum stri
 	return os.Rename(tmpFile.Name(), path)
 }
 
-func (f *File) Update(ctx Context) error {
-	provider := f.provider(ctx)
+func (f *File) Update(ctx context.Context, scope Scope) error {
+	provider := f.provider(scope)
 	path := filepath.Join(provider.Prefix, f.Path)
 	if f.Absent {
 		return os.Remove(path)
@@ -222,17 +223,17 @@ func (f *File) Update(ctx Context) error {
 			}
 		}
 
-		return f.Create(ctx)
+		return f.Create(ctx, scope)
 	}
 
 	if !f.KeepExistingContent {
-		err := f.writeContent(ctx)
+		err := f.writeContent(ctx, scope)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := f.ensureMode(ctx)
+	err := f.ensureMode(scope)
 	if err != nil {
 		return err
 	}
@@ -243,15 +244,15 @@ func (f *File) Update(ctx Context) error {
 type FileState struct {
 	info     fs.FileInfo
 	expected bool
-	context  Context
+	scope    Scope
 	content  func() (io.ReadCloser, error)
 }
 
-func (f *FileState) Found() bool {
+func (f *FileState) Found(context.Context) bool {
 	return f.info != nil || !f.expected
 }
 
-func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
+func (f *FileState) NeedsUpdate(ctx context.Context, resource Resource) (bool, error) {
 	file := resource.(*File)
 	if file.Absent && f.info != nil {
 		return true, nil
@@ -277,7 +278,7 @@ func (f *FileState) NeedsUpdate(resource Resource) (bool, error) {
 		}
 
 		expectedCheckSum := md5.New()
-		file.Content(f.context, expectedCheckSum)
+		file.Content(ctx, f.scope, expectedCheckSum)
 		if !bytes.Equal(currentCheckSum.Sum(nil), expectedCheckSum.Sum(nil)) {
 			return true, nil
 		}
