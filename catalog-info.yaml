@@ -1,0 +1,30 @@
+# Declare your Buildkite pipelines below
+---
+# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/rre.schema.json
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: buildkite-pipeline-go-resource
+  description: Buildkite Pipeline for go-resource
+  links:
+    - title: Pipeline
+      url: https://buildkite.com/elastic/go-resource
+
+spec:
+  type: buildkite-pipeline
+  owner: group:ecosystem
+  system: buildkite
+  implementation:
+    apiVersion: buildkite.elastic.dev/v1
+    kind: Pipeline
+    metadata:
+      name: go-resource
+      description: 
+    spec:
+      repository: elastic/go-resource
+      pipeline_file: ".buildkite/pipeline.yml"
+      teams:
+        ecosystem:
+          access_level: MANAGE_BUILD_AND_READ
+        everyone:
+          access_level: READ_ONLY
