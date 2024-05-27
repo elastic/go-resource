@@ -1,0 +1,14 @@
+# Declare a Backstage Component that represents your application.
+---
+# yaml-language-server: $schema=https://json.schemastore.org/catalog-info.json
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: go-resource
+  description: Go package to declarative define and maintain the expected resources in a system.
+  annotations:
+    github.com/project-slug: elastic/go-resource
+spec:
+  type: library
+  owner: group:ecosystem
+  lifecycle: experimental # Non-GA yet, only used in developer tools (mainly elastic-package).
