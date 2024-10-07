@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/tools v0.25.0
+	golang.org/x/tools v0.26.0
 	honnef.co/go/tools v0.5.1
 )
 
