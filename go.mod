@@ -6,7 +6,7 @@ toolchain go1.23.6
 
 require (
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/tools v0.32.0
+	golang.org/x/tools v0.33.0
 	honnef.co/go/tools v0.6.1
 )
 
@@ -16,6 +16,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
