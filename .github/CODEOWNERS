@@ -1,1 +1,2 @@
 .github/ @elastic/ecosystem
+/go.mod  @elastic/ecosystem
