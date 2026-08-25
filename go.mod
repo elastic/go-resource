@@ -1,11 +1,11 @@
 module github.com/elastic/go-resource
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/tools v0.49.0
-	honnef.co/go/tools v0.7.0
+	honnef.co/go/tools v0.8.0
 )
 
 require (
