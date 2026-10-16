@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/tools v0.52.0
-	honnef.co/go/tools v0.8.1
+	honnef.co/go/tools v0.8.2
 )
 
 require (
